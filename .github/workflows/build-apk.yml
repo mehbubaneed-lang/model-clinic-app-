@@ -1,36 +1,34 @@
-name: Build Model Clinic Android APK
+name: Build Model Clinic APK
 
 on:
-  workflow_dispatch:
   push:
-    branches:
-      - main
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
 
 jobs:
   build:
     runs-on: ubuntu-latest
-
     steps:
-      - name: Download repository files
-        uses: actions/checkout@v4
+      - name: Checkout
+        uses: actions/checkout@v5
 
-      - name: Find and extract clinic project ZIP
+      - name: Extract clinic project ZIP
         run: |
-          ZIP_FILE=$(find . -maxdepth 1 -name "*.zip" | head -n 1)
-
-          if [ -n "$ZIP_FILE" ]; then
-            mkdir -p app_source
-            unzip -q "$ZIP_FILE" -d app_source
-            cp -a app_source/. .
-          fi
-
-          test -f pubspec.yaml || {
-            echo "Flutter project files not found."
+          ZIP_FILE=$(find . -maxdepth 1 -type f -name '*.zip' | head -n 1)
+          if [ -z "$ZIP_FILE" ]; then
+            echo "Project ZIP not found"
             exit 1
-          }
+          fi
+          mkdir -p app_source
+          unzip -o "$ZIP_FILE" -d app_source
+          cp -R app_source/. .
+          test -f assets/app_icon.png
 
       - name: Set up Java
-        uses: actions/setup-java@v4
+        uses: actions/setup-java@v5
         with:
           distribution: temurin
           java-version: '17'
@@ -46,11 +44,14 @@ jobs:
       - name: Install dependencies
         run: flutter pub get
 
+      - name: Generate clinic launcher icons
+        run: dart run flutter_launcher_icons
+
       - name: Build APK
         run: flutter build apk --release
 
       - name: Upload APK
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v5
         with:
           name: model-clinic-android-apk
           path: build/app/outputs/flutter-apk/app-release.apk
