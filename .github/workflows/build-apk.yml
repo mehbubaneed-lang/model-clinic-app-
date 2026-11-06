@@ -1,0 +1,56 @@
+name: Build Model Clinic Android APK
+
+on:
+  workflow_dispatch:
+  push:
+    branches:
+      - main
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Download repository files
+        uses: actions/checkout@v4
+
+      - name: Find and extract clinic project ZIP
+        run: |
+          ZIP_FILE=$(find . -maxdepth 1 -name "*.zip" | head -n 1)
+
+          if [ -n "$ZIP_FILE" ]; then
+            mkdir -p app_source
+            unzip -q "$ZIP_FILE" -d app_source
+            cp -a app_source/. .
+          fi
+
+          test -f pubspec.yaml || {
+            echo "Flutter project files not found."
+            exit 1
+          }
+
+      - name: Set up Java
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '17'
+
+      - name: Set up Flutter
+        uses: subosito/flutter-action@v2
+        with:
+          channel: stable
+
+      - name: Create Android platform
+        run: flutter create --platforms=android --org com.modelclinic .
+
+      - name: Install dependencies
+        run: flutter pub get
+
+      - name: Build APK
+        run: flutter build apk --release
+
+      - name: Upload APK
+        uses: actions/upload-artifact@v4
+        with:
+          name: model-clinic-android-apk
+          path: build/app/outputs/flutter-apk/app-release.apk
